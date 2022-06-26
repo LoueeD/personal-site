@@ -73,6 +73,7 @@
 				mousePosition = { x, y };
 				isMouseDown = mouseEvent.buttons !== 0;
 			} else {
+				e.preventDefault();
 				const touchEvent = e as TouchEvent;
 				const { clientX: x, clientY: y } = touchEvent.touches[0];
 				mousePosition = { x, y };
@@ -84,6 +85,9 @@
 	});
 </script>
 
+<svelte:head>
+	<title>Loueed</title>
+</svelte:head>
 <canvas bind:this={canvas} />
 <div class="home">
 	<h1>Louis</h1>
@@ -105,10 +109,14 @@
 	.home {
 		position: fixed;
 		margin: auto;
-		left: 80px;
-		bottom: 80px;
-		width: 680px;
+		left: 20px;
+		bottom: 20px;
 		overflow: hidden;
+
+		@media (min-width: 500px) {
+			left: 80px;
+			bottom: 80px;
+		}
 
 		h1 {
 			margin: 0 0 10px;
