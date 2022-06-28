@@ -23,28 +23,32 @@ class CanvasHelper {
   }
 
   setup() {
-    this.canvas.width = window.innerWidth;
-    this.canvas.height = window.innerHeight;
+    const dpr = window.devicePixelRatio || 1;
+    const rect = document.body.getBoundingClientRect();
+    this.canvas.width = rect.width * dpr;
+    this.canvas.height = rect.height * dpr;
+    this.ctx.scale(dpr, dpr);
     this.nodes = [...new Array(4000)].map((_, i) => this.addNode(i));
     this.draw();
     window.addEventListener('mousemove', (e) => this.move(e));
     window.addEventListener('touchmove', (e) => this.move(e));
     window.addEventListener('wheel', (e) => {
       this.wheelValue += (e.deltaY / 1000);
-      console.log(this.wheelValue);
     });
-    // this.setupAudio();
+    if (document.location.hash.includes('audio')) {
+      this.setupAudio();
+    }
   }
 
   move(e: MouseEvent | TouchEvent) {
     const mouseEvent = e as MouseEvent;
+    const touchEvent = e as TouchEvent;
     if (mouseEvent.clientX && mouseEvent.clientY) {
       const { clientX: x, clientY: y } = mouseEvent;
       this.mousePosition = { x, y };
       this.isMouseDown = mouseEvent.buttons !== 0;
-    } else {
+    } else if (touchEvent.touches) {
       e.preventDefault();
-      const touchEvent = e as TouchEvent;
       const { clientX: x, clientY: y } = touchEvent.touches[0];
       this.mousePosition = { x, y };
     }
@@ -53,7 +57,7 @@ class CanvasHelper {
   draw() {
     const { x, y } = this.mousePosition;
     if (this.ctx && this.ticker < 1) {
-      this.ticker += 0.05;
+      this.ticker += 0.025;
       this.ctx.globalAlpha = this.ticker;
     }
     this.ctx.resetTransform();
@@ -63,9 +67,9 @@ class CanvasHelper {
 
         this.ctx.beginPath();
         this.ctx.arc(node.x, node.y, node.size, 0, 2 * Math.PI);
-        node.ordinal += 0.25;
+        node.ordinal += 0.25 + (5 * this.volumeMeterValue);
         this.ctx.fillStyle = this.makeColor(node.ordinal, 20);
-        const speed = node.speed; // += (Math.round(this.volumeMeterValue * 10));
+        const speed = node.speed * ((Math.round(this.volumeMeterValue * 50)) + 1);
         this.ctx.fill();
         const rand = Math.round(Math.max(1, Math.floor(Math.random() * this.wheelValue)));
         if (node.x > x) node.x -= ((node.x / node.rotation) * speed) * rand;
@@ -75,9 +79,10 @@ class CanvasHelper {
         if (!this.isMouseDown) {
           this.canvasRotate += 0.0000000001;
         }
-        this.ctx.translate(window.innerWidth / 2, window.innerHeight / 2);
+        const ty = (window.innerHeight / 2);
+        this.ctx.translate(window.innerWidth / 2, ty);
         this.ctx.rotate(this.canvasRotate);
-        this.ctx.translate(-window.innerWidth / 2, -window.innerHeight / 2);
+        this.ctx.translate(-window.innerWidth / 2, -ty);
       }
     });
     requestAnimationFrame(() => this.draw());
