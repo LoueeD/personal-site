@@ -1,6 +1,7 @@
 <script lang="ts">
 	import particles from '$lib/particles';
 	import lines from '$lib/lines';
+	import bricks from '$lib/bricks';
 	import { DisplayMode } from '$lib/display-mode';
 	import { mode } from '$lib/local';
 	import {

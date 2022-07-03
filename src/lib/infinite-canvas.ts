@@ -1,5 +1,4 @@
 import { writable } from "svelte/store";
-import debounce from 'lodash/debounce';
 
 const isWindow = typeof localStorage !== 'undefined';
 
@@ -32,11 +31,11 @@ canvasOffsetY.subscribe(
 if (isWindow && localStorage.canvasNodes) {
   canvasNodes.set(JSON.parse(localStorage.canvasNodes));
 }
-const saveNodes = debounce((nodes) => {
+const saveNodes = (nodes: any) => {
   if (isWindow) {
     localStorage.canvasNodes = JSON.stringify(nodes);
   }
-}, 250);
+};
 canvasNodes.subscribe((nodes) => saveNodes(nodes));
 
 export class InfiniteCanvas {
