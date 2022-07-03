@@ -1,10 +1,13 @@
 class CanvasHelper {
   canvas: HTMLCanvasElement;
   ctx: CanvasRenderingContext2D;
+  animate: number | undefined;
   mousePosition = { x: 0, y: 0 };
   isMouseDown = false;
   ticker = 0;
   canvasRotate = Math.PI / 10;
+  trace: { x: number, y: number }[] = [];
+  controller: AbortController;
   nodes: {
     speed: number;
     size: number;
@@ -15,10 +18,12 @@ class CanvasHelper {
   }[] = [];
   volumeMeterValue = 0;
   wheelValue = 1;
+  clickedTimer = 0;
 
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
     this.ctx = this.canvas.getContext('2d') as CanvasRenderingContext2D;
+    this.controller = new AbortController();
     this.setup();
   }
 
@@ -30,14 +35,23 @@ class CanvasHelper {
     this.ctx.scale(dpr, dpr);
     this.nodes = [...new Array(4000)].map((_, i) => this.addNode(i));
     this.draw();
-    window.addEventListener('mousemove', (e) => this.move(e));
-    window.addEventListener('touchmove', (e) => this.move(e));
+    window.addEventListener('mousemove', (e) => this.move(e), { signal: this.controller.signal });
+    window.addEventListener('touchmove', (e) => this.move(e), { signal: this.controller.signal });
+    window.addEventListener('click', (e) => this.clicked(), { signal: this.controller.signal });
     window.addEventListener('wheel', (e) => {
       this.wheelValue += (e.deltaY / 1000);
-    });
+    }, { signal: this.controller.signal });
     if (document.location.hash.includes('audio')) {
       this.setupAudio();
     }
+  }
+
+  reset() {
+    if (this.animate) {
+      cancelAnimationFrame(this.animate);
+    }
+    this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+    this.controller.abort();
   }
 
   move(e: MouseEvent | TouchEvent) {
@@ -46,13 +60,38 @@ class CanvasHelper {
     if (mouseEvent.clientX && mouseEvent.clientY) {
       const { clientX: x, clientY: y } = mouseEvent;
       this.mousePosition = { x, y };
+      this.trace.push({ ...this.mousePosition });
       this.isMouseDown = mouseEvent.buttons !== 0;
     } else if (touchEvent.touches) {
       e.preventDefault();
       const { clientX: x, clientY: y } = touchEvent.touches[0];
       this.mousePosition = { x, y };
+      this.trace.push({ ...this.mousePosition });
     }
   };
+
+  clicked() {
+    this.clickedTimer = 1;
+
+    const easeOut = () => {
+      if (this.clickedTimer > 1) {
+        this.clickedTimer -= this.clickedTimer / 12;
+        requestAnimationFrame(() => easeOut());
+      } else {
+        this.clickedTimer = 0;
+      }
+    }
+
+    const easeIn = () => {
+      if (this.clickedTimer < 1000) {
+        this.clickedTimer += this.clickedTimer / 12;
+        requestAnimationFrame(() => easeIn());
+      } else {
+        easeOut();
+      }
+    }
+    easeIn();
+  }
 
   draw() {
     const { x, y } = this.mousePosition;
@@ -62,16 +101,19 @@ class CanvasHelper {
     }
     this.ctx.resetTransform();
     this.ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
+
     this.nodes.forEach((node, i) => {
       if (this.ctx) {
 
         this.ctx.beginPath();
-        this.ctx.arc(node.x, node.y, node.size, 0, 2 * Math.PI);
+        const CLICK_SIZE = (Math.random() * this.clickedTimer / 200) * (i / 1000);
+        const size = node.size + CLICK_SIZE + Math.max(0.1, Math.floor(Math.random() * this.wheelValue));
+        this.ctx.arc(node.x, node.y, size, 0, 2 * Math.PI);
         node.ordinal += 0.25 + (5 * this.volumeMeterValue);
         this.ctx.fillStyle = this.makeColor(node.ordinal, 20);
         const speed = node.speed * ((Math.round(this.volumeMeterValue * 50)) + 1);
         this.ctx.fill();
-        const rand = Math.round(Math.max(1, Math.floor(Math.random() * this.wheelValue)));
+        const rand = 1;
         if (node.x > x) node.x -= ((node.x / node.rotation) * speed) * rand;
         if (node.x < x) node.x += ((node.x / node.rotation) * speed) * rand;
         if (node.y > y) node.y -= ((node.y / node.rotation) * speed) * rand;
@@ -85,7 +127,7 @@ class CanvasHelper {
         this.ctx.translate(-window.innerWidth / 2, -ty);
       }
     });
-    requestAnimationFrame(() => this.draw());
+    this.animate = requestAnimationFrame(() => this.draw());
   };
 
   addNode(i: number) {
@@ -128,5 +170,15 @@ class CanvasHelper {
   }
 }
 
-export default CanvasHelper;
+function particles(node: HTMLCanvasElement) {
+  const canvasHelper = new CanvasHelper(node);
+
+  return {
+    destroy() {
+      canvasHelper.reset();
+    }
+  };
+}
+
+export default particles;
 
