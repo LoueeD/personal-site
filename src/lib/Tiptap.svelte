@@ -67,6 +67,11 @@
 			cursor: se-resize;
 			background: rgba(#fff, 15%);
 			border-radius: 20px 0 9px 0;
+			opacity: 0;
+
+			&:hover {
+				opacity: 1;
+			}
 		}
 	}
 
