@@ -58,6 +58,11 @@ export class InfiniteCanvas {
         return val;
       });
     }, { signal: this.controller.signal });
+    window.addEventListener('dblclick', (e) => {
+      let nodeCount = 0;
+      canvasNodes.subscribe(val => nodeCount = val.length)();
+      this.addTextNode('Enter text here ...', nodeCount);
+    });
   }
 
   reset() {
@@ -70,7 +75,7 @@ export class InfiniteCanvas {
     canvasNodes.update(val => val.filter(item => item.id !== id));
   }
 
-  addFileNode(item: DataTransferItem) {
+  addFileNode(item: DataTransferItem, id: number) {
     const blob = item.getAsFile();
     if (blob) {
       const reader = new FileReader();
@@ -78,7 +83,7 @@ export class InfiniteCanvas {
         const dataURL = event.target.result;
         canvasNodes.update((val) => {
           return [...val, {
-            id: val.length,
+            id: this.uid(),
             type: 'image',
             data: dataURL,
             x: 100, y: 300,
@@ -89,37 +94,42 @@ export class InfiniteCanvas {
     }
   }
 
-  addTextNode(item: DataTransferItem) {
-    item.getAsString((str: string) => {
-      canvasNodes.update((val) => {
-        val = val.filter((item) => item.data !== str);
-        return [...val, {
-          id: val.length,
-          type: 'text',
-          data: str,
-          x: 100, y: 300,
-        }];
-      })
+  addTextNode(str: string, id: number) {
+    canvasNodes.update((val) => {
+      val = val.filter((item) => item.data !== str);
+      return [...val, {
+        id: this.uid(),
+        type: 'text',
+        data: str,
+        x: 100, y: 300,
+      }];
     });
   }
 
   onPaste(event: ClipboardEvent) {
     event.preventDefault();
     if (event.clipboardData) {
-      const items = event.clipboardData.items;
-      Array.from(items).forEach((item) => {
+      let nodeCount = 0;
+      canvasNodes.subscribe(val => nodeCount = val.length)();
+      const items = Array.from(event.clipboardData.items);
+      let addedValue = false;
+      items.forEach((item) => {
         console.log(item.kind, item);
         if (item.kind === 'file') {
-          this.addFileNode(item);
-        } else if (item.kind === 'string') {
-          this.addTextNode(item);
+          this.addFileNode(item, nodeCount);
+        } else if (item.kind === 'string' && !addedValue) {
+          item.getAsString((str: string) => {
+            this.addTextNode(str, nodeCount);
+            nodeCount += 1;
+          });
         }
+        console.log({ nodeCount });
       });
     }
   };
 
   dragCanvas(e: MouseEvent) {
-    e.preventDefault();
+    // e.preventDefault();
     const { clientX, clientY } = e;
     let x = 0;
     let y = 0;
@@ -151,8 +161,11 @@ export class InfiniteCanvas {
   }
 
   drag(e: MouseEvent, node: any) {
-    e.preventDefault();
+    if (e.target && InfiniteCanvas.preventDefault(e.target as HTMLElement)) {
+      e.preventDefault();
+    }
     e.stopPropagation();
+    console.log(node);
     const el = e.currentTarget as HTMLElement;
     const { clientX, clientY } = e;
     const { x, y } = node;
@@ -189,4 +202,17 @@ export class InfiniteCanvas {
     const res = await fetch(`data:${type};base64,${base64}`);
     return await res.blob()
   }
+
+  static preventDefault(el: HTMLElement): boolean {
+    const prevent = el.getAttribute('dont-prevent-default');
+    if (prevent === null && el.parentElement) {
+      return InfiniteCanvas.preventDefault(el.parentElement);
+    }
+    if (!el.parentElement) {
+      return true;
+    }
+    return false;
+  }
+
+  uid = () => String(Date.now().toString(32) + Math.random().toString(16)).replace(/\./g, '')
 }

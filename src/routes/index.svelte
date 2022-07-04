@@ -4,6 +4,7 @@
 	import bricks from '$lib/bricks';
 	import { DisplayMode } from '$lib/display-mode';
 	import { mode } from '$lib/local';
+	import Tiptap from '$lib/Tiptap.svelte';
 	import {
 		InfiniteCanvas,
 		canvasNodes,
@@ -26,6 +27,9 @@
 	let canvas: InfiniteCanvas;
 
 	onMount(() => {
+		if (!$mode) {
+			$mode = DisplayMode.Particles;
+		}
 		canvas = new InfiniteCanvas(infiniteContainer);
 	});
 
@@ -66,7 +70,7 @@
 					on:mousedown={(e) => onDrag(e, node)}
 					style="--x: {node.x}px; --y: {node.y}px;"
 				>
-					{@html node.data}
+					<Tiptap value={node.data} onChange={(val) => (node.data = val)} />
 					<div class="remove" on:click={() => removeNode(node.id)}>&#x2715</div>
 				</div>
 			{/if}
