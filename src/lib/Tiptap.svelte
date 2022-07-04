@@ -40,6 +40,7 @@
 
 <div class="tiptap-wrapper">
 	<div dont-prevent-default class="tiptap-editor" bind:this={element} />
+	<div class="resize" resize-node />
 </div>
 
 <style lang="scss">
@@ -49,14 +50,31 @@
 	}
 	.tiptap-wrapper {
 		padding: 12px;
+		min-width: 0;
+		min-height: 0;
+		overflow: auto;
 
 		.tiptap-editor {
-			width: 300px;
 			word-wrap: break-word;
+		}
+
+		.resize {
+			position: absolute;
+			right: 0;
+			bottom: 0;
+			width: 18px;
+			height: 18px;
+			cursor: se-resize;
+			background: rgba(#fff, 15%);
+			border-radius: 20px 0 9px 0;
 		}
 	}
 
 	:global(.ProseMirror > p) {
 		margin: 0;
+	}
+
+	:global(.ProseMirror > h1:first-child) {
+		margin-top: 0;
 	}
 </style>

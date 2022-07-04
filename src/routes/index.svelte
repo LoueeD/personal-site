@@ -33,6 +33,8 @@
 		canvas = new InfiniteCanvas(infiniteContainer);
 	});
 
+	$: watchingNodes = console.log($canvasNodes);
+
 	$: onDrag = canvas?.drag;
 
 	$: removeNode = canvas?.removeNode;
@@ -56,19 +58,24 @@
 		{#each $canvasNodes as node}
 			{#if node.type === 'image'}
 				<div
-					class="node"
+					class="node node--image"
 					on:mousedown={(e) => onDrag(e, node)}
-					style="--x: {node.x}px; --y: {node.y}px;"
+					style="--x: {node.x}px; --y: {node.y}px; {node.width !== undefined
+						? `width: ${node.width}px;`
+						: ''}"
 				>
 					<img src={node.data} alt="Image Node" />
 					<div class="remove" on:click={() => removeNode(node.id)}>&#x2715</div>
+					<div class="resize" resize-node />
 				</div>
 			{/if}
 			{#if node.type === 'text'}
 				<div
 					class="node node--text"
 					on:mousedown={(e) => onDrag(e, node)}
-					style="--x: {node.x}px; --y: {node.y}px;"
+					style="--x: {node.x}px; --y: {node.y}px; {node.width !== undefined
+						? `width: ${node.width}px;`
+						: ''} {node.height !== undefined ? `height: ${node.height}px` : ''}"
 				>
 					<Tiptap value={node.data} onChange={(val) => (node.data = val)} />
 					<div class="remove" on:click={() => removeNode(node.id)}>&#x2715</div>
@@ -116,9 +123,30 @@
 			padding: 12px;
 			transform: translate3d(var(--x), var(--y), 0);
 
+			&--text {
+				width: var(--width, 300px);
+				height: var(--height, auto);
+				display: flex;
+			}
+
+			&--image {
+			}
+
 			img {
+				max-width: 100%;
 				border-radius: 4px;
 				display: block;
+			}
+
+			.resize {
+				position: absolute;
+				right: 0;
+				bottom: 0;
+				width: 18px;
+				height: 18px;
+				cursor: se-resize;
+				background: rgba(#fff, 15%);
+				border-radius: 20px 0 9px 0;
 			}
 
 			.remove {

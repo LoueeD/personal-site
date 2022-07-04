@@ -58,10 +58,8 @@ export class InfiniteCanvas {
         return val;
       });
     }, { signal: this.controller.signal });
-    window.addEventListener('dblclick', (e) => {
-      let nodeCount = 0;
-      canvasNodes.subscribe(val => nodeCount = val.length)();
-      this.addTextNode('Enter text here ...', nodeCount);
+    window.addEventListener('dblclick', () => {
+      this.addTextNode('Enter text here ...');
     });
   }
 
@@ -71,11 +69,12 @@ export class InfiniteCanvas {
     }
   }
 
-  removeNode(id: number) {
+  removeNode(id: string | number) {
+    console.log('Remove Node: ', id);
     canvasNodes.update(val => val.filter(item => item.id !== id));
   }
 
-  addFileNode(item: DataTransferItem, id: number) {
+  addFileNode(item: DataTransferItem) {
     const blob = item.getAsFile();
     if (blob) {
       const reader = new FileReader();
@@ -94,7 +93,7 @@ export class InfiniteCanvas {
     }
   }
 
-  addTextNode(str: string, id: number) {
+  addTextNode(str: string) {
     canvasNodes.update((val) => {
       val = val.filter((item) => item.data !== str);
       return [...val, {
@@ -109,21 +108,20 @@ export class InfiniteCanvas {
   onPaste(event: ClipboardEvent) {
     event.preventDefault();
     if (event.clipboardData) {
-      let nodeCount = 0;
-      canvasNodes.subscribe(val => nodeCount = val.length)();
       const items = Array.from(event.clipboardData.items);
-      let addedValue = false;
+      const getFile = () => items.find((item) => item.kind === 'file');
+      const getItem = (t: string) => items.find((item) => item.kind === 'string' && item.type === t);
+      const fileItem = getFile();
+      const strItem = getItem('text/html') || getItem('text/plain');
+      if (fileItem) {
+        this.addFileNode(fileItem);
+      } else if (strItem) {
+        strItem.getAsString((str: string) => {
+          this.addTextNode(str);
+        });
+      }
       items.forEach((item) => {
-        console.log(item.kind, item);
-        if (item.kind === 'file') {
-          this.addFileNode(item, nodeCount);
-        } else if (item.kind === 'string' && !addedValue) {
-          item.getAsString((str: string) => {
-            this.addTextNode(str, nodeCount);
-            nodeCount += 1;
-          });
-        }
-        console.log({ nodeCount });
+        console.log(item.kind, item.type);
       });
     }
   };
@@ -165,31 +163,53 @@ export class InfiniteCanvas {
       e.preventDefault();
     }
     e.stopPropagation();
-    console.log(node);
     const el = e.currentTarget as HTMLElement;
+    const { width, height } = el.getBoundingClientRect();
     const { clientX, clientY } = e;
     const { x, y } = node;
     let nodeX = x;
     let nodeY = y;
     let wheel = 0;
     wheelValue.subscribe(val => wheel = val)();
+    const resize = (e.target as HTMLElement).getAttribute('resize-node') !== null;
+    let w = 0;
+    let h = 0;
+    let mouseMoved = false;
 
     const mousemove = (eMove: MouseEvent) => {
+      mouseMoved = true;
       eMove.preventDefault();
       eMove.stopPropagation();
       const { clientX: moveX, clientY: moveY } = eMove;
-      nodeX = x - ((clientX - moveX) * (1 / wheel));
-      nodeY = y - ((clientY - moveY) * (1 / wheel));
-      el.style.cssText = `
-        transform: translate3d(${nodeX}px, ${nodeY}px, 0)
-      `;
+      const deltaX = ((clientX - moveX) * (1 / wheel));
+      const deltaY = ((clientY - moveY) * (1 / wheel));
+      if (!resize) {
+        nodeX = x - deltaX;
+        nodeY = y - deltaY;
+        el.style.cssText = `
+          transform: translate3d(${nodeX}px, ${nodeY}px, 0);
+          width: ${width * (1 / wheel)}px;
+          height: ${height * (1 / wheel)}px;
+        `;
+      } else {
+        w = (width * (1 / wheel)) - deltaX;
+        h = (height * (1 / wheel)) - deltaY;
+        el.style.cssText = `transform: translate3d(${nodeX}px, ${nodeY}px, 0);width: ${w}px; height: ${h}px;`;
+      }
     };
 
     const mouseup = () => {
-      el.style.cssText = '';
-      canvasNodes.update(
-        (val) => val.map((n) => n.id === node.id ? { ...n, x: nodeX, y: nodeY } : n),
-      );
+      if (mouseMoved) {
+        el.style.cssText = '';
+        const payload: Record<string, number> = { x: nodeX, y: nodeY };
+        if (w && h) {
+          payload.width = w;
+          payload.height = h;
+        }
+        canvasNodes.update(
+          (val) => val.map((n) => n.id === node.id ? { ...n, ...payload } : n),
+        );
+      }
       window.removeEventListener('mousemove', mousemove);
       window.removeEventListener('mouseup', mouseup);
     };
